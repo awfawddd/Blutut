@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scanner BLE</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --accent: #3b82f6;
+      --text: #e8eaf0;
+      --muted: #8a90a0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sottotitolo {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    #scanBtn {
+      width: 100%;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 600;
+      color: white;
+      background: var(--accent);
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    #scanBtn:active { opacity: 0.7; }
+    #scanBtn:disabled { opacity: 0.4; }
+    #stato {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 16px 0;
+      min-height: 18px;
+    }
+    .categoria {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 22px 0 10px;
+    }
+    .device {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .device .icona { font-size: 24px; }
+    .device .info { flex: 1; min-width: 0; }
+    .device .nome {
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .device .id {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .connetti {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      background: transparent;
+      border: 1.5px solid var(--accent);
+      border-radius: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .connetti:active { background: rgba(59,130,246,0.15); }
+    .connetti.connesso {
+      color: #22c55e;
+      border-color: #22c55e;
+    }
+    .vuoto {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 40px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📡 Scanner BLE</h1>
+  <div class="sottotitolo">Trova i dispositivi Bluetooth vicini</div>
+
+  <button id="scanBtn">Scansiona</button>
+  <div id="stato"></div>
+  <div id="lista">
+    <div class="vuoto">Premi "Scansiona" per cercare<br>i dispositivi nelle vicinanze.</div>
+  </div>
+
+  <script>
+    // ---- Riferimenti agli elementi della pagina ----
+    const scanBtn = document.getElementById("scanBtn");
+    const stato   = document.getElementById("stato");
+    const lista   = document.getElementById("lista");
+
+    // ---- Memoria dei dispositivi trovati ----
+    // chiave = id del dispositivo, valore = { device, nome, categoria }
+    const trovati = {};
+
+    // ---- Categorie: in base ai servizi che il dispositivo espone ----
+    function categorizza(servizi) {
+      const s = servizi.map(x => String(x).toLowerCase());
+      if (s.some(x => x.includes("heart_rate")))   return "Fitness e salute";
+      if (s.some(x => x.includes("battery")))      return "Dispositivi con batteria";
+      if (s.some(x => x.includes("audio") || x.includes("media"))) return "Audio";
+      if (s.some(x => x.includes("device_information"))) return "Periferiche";
+      return "Altri dispositivi";
+    }
+
+    // ---- Icona per categoria ----
+    function iconaCategoria(cat) {
+      if (cat === "Fitness e salute")           return "❤️";
+      if (cat === "Dispositivi con batteria")   return "🔋";
+      if (cat === "Audio")                      return "🎧";
+      if (cat === "Periferiche")                return "⌨️";
+      return "📶";
+    }
+
+    // ---- Pulsante Scansiona ----
+    scanBtn.addEventListener("click", async () => {
+      // Controllo: il browser supporta il Bluetooth?
+      if (!navigator.bluetooth) {
+        stato.textContent = "⚠️ Bluetooth non disponibile. Apri questa pagina con il browser Bluefy.";
+        return;
+      }
+
+      try {
+        stato.textContent = "Apertura selettore dispositivi...";
+
+        // Chiede a iOS/Bluefy di mostrare il popup di scelta dispositivo
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ["battery_service", "device_information", "heart_rate"]
+        });
+
+        // Salva il dispositivo scelto
+        const cat = categorizza(device.uuids || []);
+        trovati[device.id] = { device: device, nome: device.name || "Sconosciuto", categoria: cat };
+
+        stato.textContent = "Dispositivo aggiunto alla lista.";
+        disegnaLista();
+
+      } catch (err) {
+        // L'utente ha annullato il popup, oppure errore
+        if (err.name === "NotFoundError") {
+          stato.textContent = "Nessun dispositivo selezionato.";
+        } else {
+          stato.textContent = "Errore: " + err.message;
+        }
+      }
+    });
+
+    // ---- Disegna la lista divisa per categoria ----
+    function disegnaLista() {
+      const chiavi = Object.keys(trovati);
+      if (chiavi.length === 0) {
+        lista.innerHTML = '<div class="vuoto">Premi "Scansiona" per cercare<br>i dispositivi nelle vicinanze.</div>';
+        return;
+      }
+
+      // Raggruppa i dispositivi per categoria
+      const gruppi = {};
+      for (const k of chiavi) {
+        const d = trovati[k];
+        if (!gruppi[d.categoria]) gruppi[d.categoria] = [];
+        gruppi[d.categoria].push({ id: k, ...d });
+      }
+
+      // Costruisce l'HTML
+      let html = "";
+      for (const cat of Object.keys(gruppi)) {
+        html += '<div class="categoria">' + cat + '</div>';
+        for (const d of gruppi[cat]) {
+          html += `
+            <div class="device">
+              <div class="icona">${iconaCategoria(cat)}</div>
+              <div class="info">
+                <div class="nome">${d.nome}</div>
+                <div class="id">${d.id}</div>
+              </div>
+              <button class="connetti" data-id="${d.id}">Connetti</button>
+            </div>`;
+        }
+      }
+      lista.innerHTML = html;
+
+      // Aggancia i pulsanti "Connetti"
+      document.querySelectorAll(".connetti").forEach(btn => {
+        btn.addEventListener("click", () => connetti(btn.dataset.id, btn));
+      });
+    }
+
+    // ---- Connessione a un dispositivo ----
+    async function connetti(id, btn) {
+      const d = trovati[id];
+      if (!d) return;
+
+      try {
+        btn.textContent = "Connessione...";
+        const server = await d.device.gatt.connect();
+
+        // Connesso! Legge i servizi disponibili
+        const servizi = await server.getPrimaryServices();
+        stato.textContent = `Connesso a "${d.nome}" — ${servizi.length} servizi trovati.`;
+
+        btn.textContent = "Connesso";
+        btn.classList.add("connesso");
+
+      } catch (err) {
+        stato.textContent = "Connessione fallita: " + err.message;
+        btn.textContent = "Connetti";
+      }
+    }
+  </script>
+
+</body>
+</html>
