@@ -92,6 +92,15 @@
 
     const trovati = {};
 
+    // Controllo all'avvio: il Bluetooth e' disponibile?
+    window.addEventListener("load", function() {
+      if (navigator.bluetooth) {
+        stato.textContent = "Bluetooth disponibile. Pronto per la scansione.";
+      } else {
+        stato.textContent = "Bluetooth NON disponibile in questo browser.";
+      }
+    });
+
     // Dizionario: codici servizi BLE standard -> nome leggibile (UUID Bluetooth SIG)
     const SERVIZI = {
       "00001800": { nome: "Accesso Generico",         cat: "Periferiche" },
@@ -147,10 +156,12 @@
         stato.textContent = "Dispositivo aggiunto. Premi Connetti per leggerne i dati.";
         disegnaLista();
       } catch (err) {
-        if (err.name === "NotFoundError") {
+        if (err && err.name === "NotFoundError") {
           stato.textContent = "Nessun dispositivo selezionato.";
         } else {
-          stato.textContent = "Errore: " + err.message;
+          var nome = (err && err.name) ? err.name : "Sconosciuto";
+          var msg  = (err && err.message) ? err.message : String(err);
+          stato.textContent = "ERRORE [" + nome + "] " + msg;
         }
       }
     });
