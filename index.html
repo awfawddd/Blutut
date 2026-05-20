@@ -8,7 +8,9 @@
     :root {
       --bg: #0f1117;
       --card: #1a1d27;
+      --card2: #232634;
       --accent: #3b82f6;
+      --green: #22c55e;
       --text: #e8eaf0;
       --muted: #8a90a0;
     }
@@ -20,101 +22,62 @@
       padding: 20px;
       min-height: 100vh;
     }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .sottotitolo {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 20px;
-    }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .sottotitolo { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
     #scanBtn {
-      width: 100%;
-      padding: 16px;
-      font-size: 17px;
-      font-weight: 600;
-      color: white;
-      background: var(--accent);
-      border: none;
-      border-radius: 14px;
-      cursor: pointer;
-      transition: opacity 0.15s;
+      width: 100%; padding: 16px; font-size: 17px; font-weight: 600;
+      color: white; background: var(--accent); border: none;
+      border-radius: 14px; cursor: pointer;
     }
     #scanBtn:active { opacity: 0.7; }
-    #scanBtn:disabled { opacity: 0.4; }
     #stato {
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      margin: 16px 0;
-      min-height: 18px;
+      text-align: center; color: var(--muted); font-size: 13px;
+      margin: 16px 0; min-height: 18px;
     }
     .categoria {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin: 22px 0 10px;
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin: 22px 0 10px;
     }
-    .device {
-      background: var(--card);
-      border-radius: 14px;
-      padding: 14px 16px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .device .icona { font-size: 24px; }
+    .device { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+    .device-top { display: flex; align-items: center; gap: 12px; }
+    .device .icona { font-size: 26px; }
     .device .info { flex: 1; min-width: 0; }
     .device .nome {
-      font-size: 16px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 16px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .device .id {
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 11px; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .connetti {
-      padding: 8px 14px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--accent);
-      background: transparent;
-      border: 1.5px solid var(--accent);
-      border-radius: 10px;
-      cursor: pointer;
-      white-space: nowrap;
+      padding: 8px 14px; font-size: 14px; font-weight: 600;
+      color: var(--accent); background: transparent;
+      border: 1.5px solid var(--accent); border-radius: 10px;
+      cursor: pointer; white-space: nowrap;
     }
     .connetti:active { background: rgba(59,130,246,0.15); }
-    .connetti.connesso {
-      color: #22c55e;
-      border-color: #22c55e;
+    .connetti.connesso { color: var(--green); border-color: var(--green); }
+    .dettagli {
+      margin-top: 12px; padding-top: 12px;
+      border-top: 1px solid var(--card2); font-size: 14px; display: none;
     }
+    .dettagli.aperto { display: block; }
+    .riga { display: flex; justify-content: space-between; padding: 5px 0; }
+    .riga .etichetta { color: var(--muted); }
+    .riga .valore { font-weight: 600; }
+    .capacita { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { font-size: 12px; background: var(--card2); padding: 4px 10px; border-radius: 8px; }
     .vuoto {
-      text-align: center;
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 40px;
-      line-height: 1.5;
+      text-align: center; color: var(--muted); font-size: 14px;
+      margin-top: 40px; line-height: 1.5;
     }
   </style>
 </head>
 <body>
 
   <h1>📡 Scanner BLE</h1>
-  <div class="sottotitolo">Trova i dispositivi Bluetooth vicini</div>
+  <div class="sottotitolo">Trova i dispositivi Bluetooth e leggi cosa sanno fare</div>
 
   <button id="scanBtn">Scansiona</button>
   <div id="stato"></div>
@@ -123,60 +86,67 @@
   </div>
 
   <script>
-    // ---- Riferimenti agli elementi della pagina ----
     const scanBtn = document.getElementById("scanBtn");
     const stato   = document.getElementById("stato");
     const lista   = document.getElementById("lista");
 
-    // ---- Memoria dei dispositivi trovati ----
-    // chiave = id del dispositivo, valore = { device, nome, categoria }
     const trovati = {};
 
-    // ---- Categorie: in base ai servizi che il dispositivo espone ----
-    function categorizza(servizi) {
-      const s = servizi.map(x => String(x).toLowerCase());
-      if (s.some(x => x.includes("heart_rate")))   return "Fitness e salute";
-      if (s.some(x => x.includes("battery")))      return "Dispositivi con batteria";
-      if (s.some(x => x.includes("audio") || x.includes("media"))) return "Audio";
-      if (s.some(x => x.includes("device_information"))) return "Periferiche";
-      return "Altri dispositivi";
-    }
+    // Dizionario: codici servizi BLE standard -> nome leggibile (UUID Bluetooth SIG)
+    const SERVIZI = {
+      "00001800": { nome: "Accesso Generico",         cat: "Periferiche" },
+      "00001801": { nome: "Attributi Generici",       cat: "Periferiche" },
+      "0000180a": { nome: "Informazioni Dispositivo", cat: "Periferiche" },
+      "0000180f": { nome: "Batteria",                 cat: "Dispositivi con batteria" },
+      "0000180d": { nome: "Frequenza Cardiaca",       cat: "Fitness e salute" },
+      "00001816": { nome: "Cadenza e Velocita",       cat: "Fitness e salute" },
+      "00001814": { nome: "Velocita di Corsa",        cat: "Fitness e salute" },
+      "0000181c": { nome: "Dati Utente",              cat: "Fitness e salute" },
+      "00001812": { nome: "Tastiera / Mouse (HID)",   cat: "Periferiche" },
+      "00001844": { nome: "Controllo Volume",         cat: "Audio" },
+      "0000184e": { nome: "Audio Stream Control",     cat: "Audio" },
+      "00001805": { nome: "Ora Corrente",             cat: "Periferiche" },
+      "0000feaa": { nome: "Beacon Eddystone",         cat: "Altri dispositivi" }
+    };
 
-    // ---- Icona per categoria ----
+    function chiaveServizio(uuid) {
+      return String(uuid).toLowerCase().slice(0, 8);
+    }
+    function nomeServizio(uuid) {
+      const s = SERVIZI[chiaveServizio(uuid)];
+      return s ? s.nome : "Servizio sconosciuto";
+    }
     function iconaCategoria(cat) {
-      if (cat === "Fitness e salute")           return "❤️";
-      if (cat === "Dispositivi con batteria")   return "🔋";
-      if (cat === "Audio")                      return "🎧";
-      if (cat === "Periferiche")                return "⌨️";
-      return "📶";
+      if (cat === "Fitness e salute")         return "\u2764\uFE0F";
+      if (cat === "Dispositivi con batteria") return "\uD83D\uDD0B";
+      if (cat === "Audio")                    return "\uD83C\uDFA7";
+      if (cat === "Periferiche")              return "\u2328\uFE0F";
+      return "\uD83D\uDCF6";
     }
 
-    // ---- Pulsante Scansiona ----
     scanBtn.addEventListener("click", async () => {
-      // Controllo: il browser supporta il Bluetooth?
       if (!navigator.bluetooth) {
-        stato.textContent = "⚠️ Bluetooth non disponibile. Apri questa pagina con il browser Bluefy.";
+        stato.textContent = "Bluetooth non disponibile. Apri la pagina con il browser Bluefy.";
         return;
       }
-
       try {
         stato.textContent = "Apertura selettore dispositivi...";
-
-        // Chiede a iOS/Bluefy di mostrare il popup di scelta dispositivo
         const device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: ["battery_service", "device_information", "heart_rate"]
+          optionalServices: [
+            "generic_access", "device_information", "battery_service",
+            "heart_rate", 0x1812, 0x1844
+          ]
         });
-
-        // Salva il dispositivo scelto
-        const cat = categorizza(device.uuids || []);
-        trovati[device.id] = { device: device, nome: device.name || "Sconosciuto", categoria: cat };
-
-        stato.textContent = "Dispositivo aggiunto alla lista.";
+        trovati[device.id] = {
+          device: device,
+          nome: device.name || "Dispositivo senza nome",
+          categoria: "Altri dispositivi",
+          dettagli: null
+        };
+        stato.textContent = "Dispositivo aggiunto. Premi Connetti per leggerne i dati.";
         disegnaLista();
-
       } catch (err) {
-        // L'utente ha annullato il popup, oppure errore
         if (err.name === "NotFoundError") {
           stato.textContent = "Nessun dispositivo selezionato.";
         } else {
@@ -185,66 +155,112 @@
       }
     });
 
-    // ---- Disegna la lista divisa per categoria ----
-    function disegnaLista() {
+    async function connetti(id, btn) {
+      const d = trovati[id];
+      if (!d) return;
+      try {
+        btn.textContent = "Connessione...";
+        const server = await d.device.gatt.connect();
+        stato.textContent = 'Connesso a "' + d.nome + '". Lettura dati...';
+
+        const dett = { batteria: null, produttore: null, modello: null, capacita: [] };
+
+        let servizi = [];
+        try { servizi = await server.getPrimaryServices(); } catch (e) { servizi = []; }
+
+        for (const s of servizi) {
+          const nome = nomeServizio(s.uuid);
+          if (!dett.capacita.includes(nome)) dett.capacita.push(nome);
+        }
+        if (dett.capacita.length === 0) dett.capacita.push("Nessun servizio leggibile");
+
+        try {
+          const sBatt = await server.getPrimaryService("battery_service");
+          const cBatt = await sBatt.getCharacteristic("battery_level");
+          const valore = await cBatt.readValue();
+          dett.batteria = valore.getUint8(0);
+        } catch (e) { dett.batteria = null; }
+
+        try {
+          const sInfo = await server.getPrimaryService("device_information");
+          try {
+            const c = await sInfo.getCharacteristic("manufacturer_name_string");
+            const v = await c.readValue();
+            dett.produttore = new TextDecoder().decode(v);
+          } catch (e) {}
+          try {
+            const c = await sInfo.getCharacteristic("model_number_string");
+            const v = await c.readValue();
+            dett.modello = new TextDecoder().decode(v);
+          } catch (e) {}
+        } catch (e) {}
+
+        d.dettagli = dett;
+        stato.textContent = '"' + d.nome + '" - dati letti.';
+        disegnaLista(id);
+      } catch (err) {
+        stato.textContent = "Connessione fallita: " + err.message;
+        disegnaLista();
+      }
+    }
+
+    function disegnaLista(apriId) {
       const chiavi = Object.keys(trovati);
       if (chiavi.length === 0) {
         lista.innerHTML = '<div class="vuoto">Premi "Scansiona" per cercare<br>i dispositivi nelle vicinanze.</div>';
         return;
       }
-
-      // Raggruppa i dispositivi per categoria
       const gruppi = {};
       for (const k of chiavi) {
         const d = trovati[k];
         if (!gruppi[d.categoria]) gruppi[d.categoria] = [];
         gruppi[d.categoria].push({ id: k, ...d });
       }
-
-      // Costruisce l'HTML
       let html = "";
       for (const cat of Object.keys(gruppi)) {
         html += '<div class="categoria">' + cat + '</div>';
         for (const d of gruppi[cat]) {
-          html += `
-            <div class="device">
-              <div class="icona">${iconaCategoria(cat)}</div>
-              <div class="info">
-                <div class="nome">${d.nome}</div>
-                <div class="id">${d.id}</div>
-              </div>
-              <button class="connetti" data-id="${d.id}">Connetti</button>
-            </div>`;
+          const connesso = d.dettagli !== null;
+          let dettHtml = "";
+          if (connesso) {
+            const x = d.dettagli;
+            let righe = "";
+            if (x.batteria !== null)
+              righe += '<div class="riga"><span class="etichetta">Batteria</span><span class="valore">' + x.batteria + '%</span></div>';
+            else
+              righe += '<div class="riga"><span class="etichetta">Batteria</span><span class="valore">non disponibile</span></div>';
+            if (x.produttore)
+              righe += '<div class="riga"><span class="etichetta">Produttore</span><span class="valore">' + x.produttore + '</span></div>';
+            if (x.modello)
+              righe += '<div class="riga"><span class="etichetta">Modello</span><span class="valore">' + x.modello + '</span></div>';
+            const tags = x.capacita.map(function(c){ return '<span class="tag">' + c + '</span>'; }).join("");
+            dettHtml =
+              '<div class="dettagli ' + (apriId === d.id ? "aperto" : "") + '">' +
+                righe +
+                '<div class="riga"><span class="etichetta">Cosa sa fare:</span></div>' +
+                '<div class="capacita">' + tags + '</div>' +
+              '</div>';
+          }
+          html +=
+            '<div class="device">' +
+              '<div class="device-top">' +
+                '<div class="icona">' + iconaCategoria(cat) + '</div>' +
+                '<div class="info">' +
+                  '<div class="nome">' + d.nome + '</div>' +
+                  '<div class="id">' + d.id + '</div>' +
+                '</div>' +
+                '<button class="connetti ' + (connesso ? "connesso" : "") + '" data-id="' + d.id + '">' +
+                  (connesso ? "Connesso" : "Connetti") +
+                '</button>' +
+              '</div>' +
+              dettHtml +
+            '</div>';
         }
       }
       lista.innerHTML = html;
-
-      // Aggancia i pulsanti "Connetti"
-      document.querySelectorAll(".connetti").forEach(btn => {
-        btn.addEventListener("click", () => connetti(btn.dataset.id, btn));
+      document.querySelectorAll(".connetti").forEach(function(btn){
+        btn.addEventListener("click", function(){ connetti(btn.dataset.id, btn); });
       });
-    }
-
-    // ---- Connessione a un dispositivo ----
-    async function connetti(id, btn) {
-      const d = trovati[id];
-      if (!d) return;
-
-      try {
-        btn.textContent = "Connessione...";
-        const server = await d.device.gatt.connect();
-
-        // Connesso! Legge i servizi disponibili
-        const servizi = await server.getPrimaryServices();
-        stato.textContent = `Connesso a "${d.nome}" — ${servizi.length} servizi trovati.`;
-
-        btn.textContent = "Connesso";
-        btn.classList.add("connesso");
-
-      } catch (err) {
-        stato.textContent = "Connessione fallita: " + err.message;
-        btn.textContent = "Connetti";
-      }
     }
   </script>
 
